@@ -205,36 +205,64 @@ my $fileName2;
 my $zipped = isZipped($fq1);
 my $subtractedFq;
 
-my($root, $length);
+my($root, $mate, $length);
 
 $fileName1 =~ s/^.*\///g; # strip path
 
 my $genome_sub = 0;
-if ($fileName1 =~ /\-e\.f/){ # it has to be a fastq file (not fasta)
+if ($fileName1 =~ /\-e\.f/) { # it has to be a fastq file (not fasta)
     $genome_sub=1;
-    ($root,$length)=$fileName1=~/(\S+?)\-(\d{1,4})\-e\.(fastq|fq|fastq|fa)(\.gz)?/;  #Fixed regex --TSW
+    ($root,$length)=$fileName1=~/(\S+?)\-(\d{1,4})\-e\.(fastq|fq|fastq|fa)(\.gz)?/;
     $fq=$&;
     $subtractedFq = $fq1;
     errPrint "Only for 50nt if genome subtracted\n" if $length!=50;
-} else {
+} 
+else {
     if ($runExprFlag || $onlyExprFlag){ # only if GE is actives checks if readLength is provided
 	# allow readlength to be given by -readLen x --TSW
 	if($readLength) {
 	    $length = $readLength;
-	    $fileName1 =~ /(\S+)\.(fastq|fq|fasta|fa)(\.gz)?/;  # regex by --TSW
-	    $root = $1;
+            if ($pairedEnd){
+	        $fileName1 =~ /(\S+)(_1)\.(fastq|fq|fasta|fa)(\.gz)?/;  # regex by --TSW
+	        $root = $1;
+                $mate = $2;
+                unless ($2 eq "_1") {errPrintDie "Paired end reads must contain _1 and _2 in the filename eg: 'sampleid_1.fastq.gz'" }
+            }
+            else {
+                $fileName1 =~ /(\S+)\.(fastq|fq|fasta|fa)(\.gz)?/;  # regex by --TSW
+                $root = $1;
+            }
 	} 
+     
 	else { # default behavior by --MI
-	    ($root,$length)=$fileName1=~/(\S+)\-(\d{1,4})\.(fastq|fq|fasta|fa)(\.gz)?/; # regex by --MI
-	    if(!defined($length) or $length eq "") { 
-		errPrintDie "You must either give read length as -readLen i, or rename your fq files name-len.fq";
-	    }
+            if ($pairedEnd) {
+	        ($root,$mate,$length)=$fileName1=~/(\S+)(_1)\-(\d{1,4})\.(fastq|fq|fasta|fa)(\.gz)?/; # regex by --MI
+                unless ($2 eq "_1") {errPrintDie "Paired end reads must contain _1 and _2 in the filename eg: 'sampleid_1.fastq.gz'" }
+                if(!defined($length) or $length eq "") { 
+		    errPrintDie "You must either give read length as -readLen i, or rename your fq files name-len.fq";
+	        }
+            }
+            else {
+                ($root,$length)=$fileName1=~/(\S+)\-(\d{1,4})\.(fastq|fq|fasta|fa)(\.gz)?/; # regex by --MI
+                if(!defined($length) or $length eq "") {
+                    errPrintDie "You must either give read length as -readLen i, or rename your fq files name-len.fq"; 
+                }
+            }
 	}
     }
     else { # anything is valid here
-	$length = 50;
-	$fileName1 =~ /(\S+)\.(fastq|fq|fasta|fa)(\.gz)?/; 
-	$root = $1;
+        if ($pairedEnd){
+  	    $length = 50;
+	    $fileName1 =~ /(\S+)(_1)\.(fastq|fq|fasta|fa)(\.gz)?/; 
+	    $root = $1;
+            $mate = $2;
+            unless ($2 eq "_1") {errPrintDie "Paired end reads must contain _1 and _2 in the filename eg: 'sampleid_1.fastq.gz'" }
+        }
+        else {
+            $length = 50;
+            $fileName1 =~ /(\S+)\.(fastq|fq|fasta|fa)(\.gz)?/; 
+            $root = $1;
+        }
     }
     if ($pairedEnd){
 	$fq2 = abs_path($ARGV[1]);
